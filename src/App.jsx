@@ -16,8 +16,8 @@ import cloudAccountingImg from "./assets/services/cloud-accounting.jpeg";
 import cfoServicesImg from "./assets/services/cfo-services.jpeg";
 import cpaFirmSupportImg from "./assets/services/cpa-firm-support.jpeg";
 import amritImg from "./assets/Amrit1.jpeg";
-import anupamImg from "./assets/Anupam.png";
-import basantaImg from "./assets/Basanta.jpeg";
+import anupamImg from "./assets/anupam_kafle.webp";
+import basantaImg from "./assets/basanta_lama.webp";
 import aishwaryaImg from "./assets/aishwarya_shrestha.jpeg";
 import apilImg from "./assets/apil_thapa.jpeg";
 import sarojImg from "./assets/saroj_timsina.jpeg";
@@ -34,6 +34,9 @@ import netsuiteLogo from "./assets/tools/netsuite.png";
 import karbonLogo from "./assets/tools/karbon.svg";
 import canopyLogo from "./assets/tools/canopy.png";
 import floqastLogo from "./assets/tools/floqast.png";
+import fusemachinesLogo from "./assets/clients/fusemachines.png";
+import accountants4smeLogo from "./assets/clients/accountants4sme.png";
+import himalayanLogo from "./assets/clients/himalayan-pte.png";
 
 function useReveal() {
   const ref = useRef(null);
@@ -143,10 +146,27 @@ const SECTION_ROUTES = {
 };
 
 const NAVIGATE_EVENT = "fl:navigate";
+// Fired when only the #hash changes on the current page and no element has
+// that id, so components that own the hash (e.g. a service) can react.
+const HASH_EVENT = "fl:hash";
 
 function normalizePath(pathname) {
   const trimmed = pathname.replace(/\/+$/, "");
   return trimmed === "" ? "/" : trimmed;
+}
+
+// Page Y of an element from layout offsets, ignoring CSS transforms.
+function layoutTop(el) {
+  let y = 0;
+  for (let node = el; node; node = node.offsetParent) y += node.offsetTop;
+  return y;
+}
+
+// Uses layout offsets rather than scrollIntoView, which measures the
+// transformed box and overshoots while a reveal animation is still running.
+function scrollToElement(el, behavior = "smooth") {
+  const padding = parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0;
+  window.scrollTo({ top: Math.max(0, layoutTop(el) - padding), behavior });
 }
 
 function navigate(to) {
@@ -155,8 +175,11 @@ function navigate(to) {
   if (path === normalizePath(window.location.pathname)) {
     const target = url.hash && document.getElementById(url.hash.slice(1));
     if (target) {
-      target.scrollIntoView({ behavior: "smooth" });
+      scrollToElement(target);
       window.history.replaceState(null, "", path + url.hash);
+    } else if (url.hash) {
+      window.history.replaceState(null, "", path + url.hash);
+      window.dispatchEvent(new Event(HASH_EVENT));
     } else {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
@@ -311,6 +334,8 @@ function ScrollProgress() {
 
 /* ---------------- SOLAR ICONS ---------------- */
 const TOAST_DURATION = 5000;
+// Slightly above the 2000ms fill-speed threshold in backend/main.py.
+const MIN_FILL_MS = 2200;
 
 const solarIcons = {
   arrowRight: (
@@ -661,7 +686,11 @@ function Nav({ path }) {
             ),
           )}
         </nav>
-        <a href="/contact" className="fl-btn fl-btn-primary fl-nav-cta">
+        <a
+          href="/contact"
+          className={`fl-btn fl-btn-primary fl-nav-cta ${isActive("/contact") ? "is-active" : ""}`}
+          aria-current={isActive("/contact") ? "page" : undefined}
+        >
           Contact Us
         </a>
         <button
@@ -730,7 +759,8 @@ function Nav({ path }) {
         <a
           href="/contact"
           onClick={() => setOpen(false)}
-          style={{ color: "#a9a2ff", fontWeight: 600 }}
+          className={`fl-mobile-contact ${isActive("/contact") ? "is-active" : ""}`}
+          aria-current={isActive("/contact") ? "page" : undefined}
         >
           Contact Us →
         </a>
@@ -877,14 +907,13 @@ function WhatWeSolve() {
 /* ---------------- TRUSTED PERFORMANCE ---------------- */
 function TrustedPerformance() {
   const stats = [
-    { end: 50, suffix: "+", label: "Business scaled" },
+    { end: 50, suffix: "+", label: "Businesses scaled" },
     { end: 5, suffix: "+", label: "Countries active" },
     { end: 95, suffix: "%", label: "Client retention" },
     {
       end: 100000,
       label: "Transactions processed",
-      formatter: (value) =>
-        value >= 999500 ? "100K+" : `${Math.round(value / 1000)}K+`,
+      formatter: (value) => `${Math.round(value / 1000)}K+`,
     },
   ];
 
@@ -1023,22 +1052,22 @@ function Solutions() {
     },
     {
       title: "Book Cleanup",
-      body: "Custom dashboards and real-time reporting that turn raw data into strategic leverage.",
+      body: "Catch-up and clean-up of messy or outdated books: reconciled accounts, corrected categorization and a clean starting point.",
       image: bookCleanupImg,
     },
     {
       title: "Payroll Accounting",
-      body: "Architecture and deployment of enterprise-grade accounting stacks.",
+      body: "Accurate payroll journals, liability reconciliations and compliance-ready payroll records for every pay cycle.",
       image: payrollAccountingImg,
     },
     {
       title: "Tax Solutions",
-      body: "Global talent integration for seamless scaling of your finance team.",
+      body: "Tax-ready books, return preparation support and year-round planning, so filing season brings no surprises.",
       image: taxSolutionsImg,
     },
     {
       title: "Financial Statements",
-      body: "Securing and structuring your most valuable asset, so every number reconciles.",
+      body: "P&L, balance sheet and cash flow statements prepared on schedule, so every number reconciles.",
       image: financialStatementsImg,
     },
     {
@@ -1097,166 +1126,268 @@ function Solutions() {
 }
 
 /* ---------------- SERVICES SHOWCASE ---------------- */
+// `id` is the URL hash that opens the service: /services#payroll-support
+const SERVICES = [
+  {
+    id: "bookkeeping-accounting",
+    icon: "book",
+    title: "Bookkeeping & Accounting",
+    image: bookkeepingServiceImg,
+    position: "42% 46%",
+    accent: "#6366f1",
+    bullets: [
+      "Daily, weekly, and monthly bookkeeping",
+      "General ledger maintenance",
+      "Chart of accounts setup & cleanup",
+      "Bank & credit card reconciliation",
+      "Historical catch-up bookkeeping",
+    ],
+  },
+  {
+    id: "financial-reporting",
+    icon: "chart",
+    title: "Financial Reporting",
+    image: financialReportingImg,
+    position: "58% 55%",
+    accent: "#4f46e5",
+    bullets: [
+      "Monthly & quarterly management reports",
+      "P&L, balance sheet, and cash flow statements",
+      "Month-end & year-end close",
+      "Custom reporting dashboards",
+    ],
+  },
+  {
+    id: "accounts-payable-receivable",
+    icon: "card",
+    title: "Accounts Payable & Receivable",
+    image: accountsPayableReceivableImg,
+    position: "50% 45%",
+    accent: "#7c3aed",
+    bullets: [
+      "Invoice processing & vendor management",
+      "AP/AR tracking and aging reports",
+      "Collections follow-up support",
+    ],
+  },
+  {
+    id: "payroll-support",
+    icon: "wallet",
+    title: "Payroll Support",
+    image: payrollSupportImg,
+    position: "50% 30%",
+    accent: "#5b6df4",
+    bullets: [
+      "Payroll processing (weekly/biweekly/monthly)",
+      "Payroll compliance support",
+      "Direct deposit & payslip management",
+      "Multi-jurisdiction payroll coordination",
+    ],
+  },
+  {
+    id: "cloud-accounting",
+    icon: "cloud",
+    title: "Cloud Accounting Solutions",
+    image: cloudAccountingImg,
+    position: "45% 50%",
+    accent: "#3f37c9",
+    bullets: [
+      "Software setup & migration (QuickBooks, Xero, and similar platforms)",
+      "Cloud workflow integration",
+      "App/tool syncing for real-time collaboration",
+    ],
+  },
+  {
+    id: "cfo-advisory",
+    icon: "briefcase",
+    title: "CFO & Advisory Support",
+    image: cfoServicesImg,
+    position: "50% 38%",
+    accent: "#6d5dfc",
+    bullets: [
+      "KPI tracking & financial dashboards",
+      "Cash flow management",
+      "Budgeting & forecasting",
+      "Budget vs. actual analysis",
+      "Strategic financial planning support",
+    ],
+  },
+  {
+    id: "cpa-firm-support",
+    icon: "users",
+    title: "CPA Firm Support",
+    image: cpaFirmSupportImg,
+    position: "50% 45%",
+    accent: "#8b5cf6",
+    bullets: [
+      "White-labeled bookkeeping capacity",
+      "Overflow & seasonal support",
+      "Staff augmentation for existing engagements",
+      "Workpapers aligned to your firm's review process",
+    ],
+  },
+  {
+    id: "audit-support",
+    icon: "checklist",
+    title: "Audit Support",
+    image: auditSupportImg,
+    position: "50% 45%",
+    accent: "#4338ca",
+    bullets: [
+      "Audit workpaper preparation",
+      "PBC (Prepared-by-Client) list compilation",
+      "Supporting schedule preparation for CPA-led audit engagements",
+    ],
+  },
+];
+
+const serviceIndexFromHash = () =>
+  SERVICES.findIndex((s) => `#${s.id}` === window.location.hash);
+
+// Mirrors `.fl-services-layout { top: clamp(76px, 6vw, 104px) }` in App.css.
+const servicesStickyTop = () => Math.min(104, Math.max(76, window.innerWidth * 0.06));
+
+// Pinning only works when the whole panel, with its tallest service open,
+// fits on screen; otherwise the lower rows can never be seen while pinned.
+function servicesPanelFits(layout) {
+  const open = layout.querySelector(".fl-service-row.is-active .fl-service-dropdown");
+  const tallestDropdown = Math.max(
+    ...[...layout.querySelectorAll(".fl-service-bullets")].map((ul) => ul.scrollHeight),
+  ) + 56; // + the open list's padding
+  const needed = layout.offsetHeight - (open ? open.offsetHeight : 0) + tallestDropdown;
+  return needed <= window.innerHeight - servicesStickyTop() - 16;
+}
+
+const SERVICE_SCROLL_LEAD = 0.12;
+
 function ServicesShowcase() {
-  const services = [
-    {
-      icon: "book",
-      title: "Bookkeeping & Accounting",
-      image: bookkeepingServiceImg,
-      position: "42% 46%",
-      accent: "#6366f1",
-      bullets: [
-        "Daily, weekly, and monthly bookkeeping",
-        "General ledger maintenance",
-        "Chart of accounts setup & cleanup",
-        "Bank & credit card reconciliation",
-        "Historical catch-up bookkeeping",
-      ],
-    },
-    {
-      icon: "chart",
-      title: "Financial Reporting",
-      image: financialReportingImg,
-      position: "58% 55%",
-      accent: "#4f46e5",
-      bullets: [
-        "Monthly & quarterly management reports",
-        "P&L, balance sheet, and cash flow statements",
-        "Month-end & year-end close",
-        "Custom reporting dashboards",
-      ],
-    },
-    {
-      icon: "card",
-      title: "Accounts Payable & Receivable",
-      image: accountsPayableReceivableImg,
-      position: "50% 45%",
-      accent: "#7c3aed",
-      bullets: [
-        "Invoice processing & vendor management",
-        "AP/AR tracking and aging reports",
-        "Collections follow-up support",
-      ],
-    },
-    {
-      icon: "wallet",
-      title: "Payroll Support",
-      image: payrollSupportImg,
-      position: "50% 30%",
-      accent: "#5b6df4",
-      bullets: [
-        "Payroll processing (weekly/biweekly/monthly)",
-        "Payroll compliance support",
-        "Direct deposit & payslip management",
-        "Multi-jurisdiction payroll coordination",
-      ],
-    },
-    {
-      icon: "cloud",
-      title: "Cloud Accounting Solutions",
-      image: cloudAccountingImg,
-      position: "45% 50%",
-      accent: "#3f37c9",
-      bullets: [
-        "Software setup & migration (QuickBooks, Xero, and similar platforms)",
-        "Cloud workflow integration",
-        "App/tool syncing for real-time collaboration",
-      ],
-    },
-    {
-      icon: "briefcase",
-      title: "CFO & Advisory Support",
-      image: cfoServicesImg,
-      position: "50% 38%",
-      accent: "#6d5dfc",
-      bullets: [
-        "KPI tracking & financial dashboards",
-        "Cash flow management",
-        "Budgeting & forecasting",
-        "Budget vs. actual analysis",
-        "Strategic financial planning support",
-      ],
-    },
-    {
-      icon: "users",
-      title: "CPA Firm Support",
-      image: cpaFirmSupportImg,
-      position: "50% 45%",
-      accent: "#8b5cf6",
-      bullets: [
-        "White-labeled bookkeeping capacity",
-        "Overflow & seasonal support",
-        "Staff augmentation for existing engagements",
-        "Workpapers aligned to your firm's review process",
-      ],
-    },
-    {
-      icon: "checklist",
-      title: "Audit Support",
-      image: auditSupportImg,
-      position: "50% 45%",
-      accent: "#4338ca",
-      bullets: [
-        "Audit workpaper preparation",
-        "PBC (Prepared-by-Client) list compilation",
-        "Supporting schedule preparation for CPA-led audit engagements",
-      ],
-    },
-  ];
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [openIndex, setOpenIndex] = useState(0);
-  const sectionRef = useRef(null);
-  const activeService = services[activeIndex];
+  const services = SERVICES;
   const serviceCount = services.length;
+  const [activeIndex, setActiveIndex] = useState(() => Math.max(0, serviceIndexFromHash()));
+  const [openIndex, setOpenIndex] = useState(() => Math.max(0, serviceIndexFromHash()));
+  // Pinned: the panel sticks and scrolling steps through services.
+  // Otherwise: a plain click accordion that scrolls with the page.
+  const [isPinned, setIsPinned] = useState(false);
+  const pinnedRef = useRef(false);
+  const ignoreScrollUntilRef = useRef(0);
+  const sectionRef = useRef(null);
+  const layoutRef = useRef(null);
+  const activeService = services[activeIndex];
+
+  // Where to scroll so service `index` is open and fully visible. Reads the
+  // DOM before the open row changes, so call it before updating state.
+  const serviceScrollTarget = (index) => {
+    const section = sectionRef.current;
+    const padding = parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0;
+    if (pinnedRef.current) {
+      // The scroll position the scroll handler maps to this service.
+      const scrollable = section.offsetHeight - window.innerHeight;
+      const progress = (index + 0.5) / serviceCount;
+      return layoutTop(section) + progress * scrollable - window.innerHeight * SERVICE_SCROLL_LEAD;
+    }
+    const row = section.querySelectorAll(".fl-service-row")[index];
+    const openRow = section.querySelector(".fl-service-row.is-active");
+    let rowTop = layoutTop(row);
+    // The currently open row collapses as this one opens; if it sits above,
+    // this row ends up higher by the collapsed height.
+    if (openRow && openRow !== row && openRow.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING) {
+      rowTop -= openRow.querySelector(".fl-service-dropdown").offsetHeight;
+    }
+    const rowBottom =
+      rowTop + row.querySelector("button").offsetHeight + row.querySelector(".fl-service-bullets").scrollHeight + 56;
+    const sectionTop = layoutTop(section) - padding;
+    // Show the whole section when the open row still fits below its heading.
+    return rowBottom - sectionTop <= window.innerHeight ? sectionTop : rowTop - padding - 12;
+  };
+
+  const openService = (index, behavior = "smooth") => {
+    const top = serviceScrollTarget(index);
+    ignoreScrollUntilRef.current = performance.now() + 1000;
+    setActiveIndex(index);
+    setOpenIndex(index);
+    window.scrollTo({ top: Math.max(0, top), behavior });
+  };
+
+  useLayoutEffect(() => {
+    let frame = 0;
+    const measure = () => {
+      if (!layoutRef.current) return;
+      const fits = servicesPanelFits(layoutRef.current);
+      pinnedRef.current = fits;
+      setIsPinned(fits);
+    };
+    const remeasure = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(measure);
+    };
+    measure();
+    window.addEventListener("resize", remeasure);
+    document.fonts?.ready.then(remeasure);
+    return () => {
+      window.removeEventListener("resize", remeasure);
+      cancelAnimationFrame(frame);
+    };
+  }, []);
 
   useEffect(() => {
-    const section = sectionRef.current;
-    if (!section) return;
+    const onHash = (behavior) => {
+      const index = serviceIndexFromHash();
+      if (index >= 0) openService(index, behavior);
+    };
+    const onHashEvent = () => onHash("smooth");
+    // Wait a frame on first load so the pinned/unpinned layout is in place.
+    const frame = requestAnimationFrame(() => onHash("instant"));
+    window.addEventListener(HASH_EVENT, onHashEvent);
+    window.addEventListener("popstate", onHashEvent);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener(HASH_EVENT, onHashEvent);
+      window.removeEventListener("popstate", onHashEvent);
+    };
+  }, []);
 
+  useEffect(() => {
+    if (!isPinned) return;
+    const section = sectionRef.current;
     let frameId = null;
     const updateActiveService = () => {
-      if (frameId) return;
-
+      if (frameId || performance.now() < ignoreScrollUntilRef.current) return;
       frameId = requestAnimationFrame(() => {
-        const rect = section.getBoundingClientRect();
+        frameId = null;
+        if (performance.now() < ignoreScrollUntilRef.current) return;
+        // Layout position, not getBoundingClientRect: the page-enter
+        // animation transforms <main> and would skew the mapping.
+        const scrolledIn = window.scrollY - layoutTop(section);
         const scrollable = Math.max(section.offsetHeight - window.innerHeight, 1);
-        const rawProgress = (-rect.top + window.innerHeight * 0.12) / scrollable;
+        const rawProgress = (scrolledIn + window.innerHeight * SERVICE_SCROLL_LEAD) / scrollable;
         const progress = Math.min(Math.max(rawProgress, 0), 1);
-        const nextIndex = Math.min(
-          serviceCount - 1,
-          Math.floor(progress * serviceCount),
-        );
-
+        const nextIndex = Math.min(serviceCount - 1, Math.floor(progress * serviceCount));
         setActiveIndex((current) => {
           if (current === nextIndex) return current;
           setOpenIndex(nextIndex);
           return nextIndex;
         });
-        frameId = null;
       });
     };
 
     updateActiveService();
     window.addEventListener("scroll", updateActiveService, { passive: true });
-    window.addEventListener("resize", updateActiveService);
-
     return () => {
       window.removeEventListener("scroll", updateActiveService);
-      window.removeEventListener("resize", updateActiveService);
       if (frameId) cancelAnimationFrame(frameId);
     };
-  }, [serviceCount]);
+  }, [isPinned, serviceCount]);
 
   return (
     <section
-      className="fl-services-showcase"
+      className={`fl-services-showcase ${isPinned ? "" : "is-static"}`}
       id="services"
       ref={sectionRef}
       style={{ "--service-scroll-height": `calc(100vh + ${serviceCount * 36}px)` }}
     >
       <div className="fl-container fl-services-sticky">
         <Reveal>
-          <div className="fl-services-layout">
+          <div className="fl-services-layout" ref={layoutRef}>
             <div
               className="fl-service-visual"
               style={{
@@ -1290,6 +1421,10 @@ function ServicesShowcase() {
                         type="button"
                         aria-expanded={isOpen}
                         onClick={() => {
+                          if (pinnedRef.current) {
+                            openService(index);
+                            return;
+                          }
                           setActiveIndex(index);
                           setOpenIndex((current) =>
                             current === index ? null : index,
@@ -1440,51 +1575,59 @@ function WhyUs() {
 }
 
 /* ---------------- INDUSTRIES ---------------- */
+const INDUSTRIES = [
+  {
+    id: "real-estate",
+    g: "RE",
+    name: "Real Estate",
+    sub: "Property & lease accounting",
+    bg: "linear-gradient(135deg,#191e52,#3f37c9)",
+    photo: realEstateImg,
+  },
+  {
+    id: "accounting-cpa",
+    g: "AC",
+    name: "Accounting & CPA",
+    sub: "Practice support",
+    bg: "linear-gradient(135deg,#1b1f52,#2f2c86)",
+    photo: accountingImg,
+  },
+  {
+    id: "construction",
+    g: "CN",
+    name: "Construction",
+    sub: "Job costing",
+    bg: "linear-gradient(135deg,#232a68,#3f3a9e)",
+    photo: constructionImg,
+  },
+  {
+    id: "hospitality",
+    g: "HH",
+    name: "Hotel & Hospitality",
+    sub: "Revenue recognition",
+    bg: "linear-gradient(135deg,#191e52,#3f37c9)",
+    photo: hospitalityImg,
+  },
+  {
+    id: "technology",
+    g: "TC",
+    name: "Technology",
+    sub: "SaaS metrics",
+    bg: "linear-gradient(135deg,#3f37c9,#7c3aed)",
+    photo: technologyImg,
+  },
+  {
+    id: "startups",
+    g: "SU",
+    name: "Startups",
+    sub: "Runway & reporting",
+    bg: "linear-gradient(135deg,#12163a,#4f46e5)",
+    photo: startupsImg,
+  },
+];
+
 function Industries() {
-  const items = [
-    {
-      g: "RS",
-      name: "Real State",
-      sub: "Revenue recognition",
-      bg: "linear-gradient(135deg,#191e52,#3f37c9)",
-      photo: realEstateImg,
-    },
-    {
-      g: "AC",
-      name: "Accounting & CPA",
-      sub: "Practice support",
-      bg: "linear-gradient(135deg,#1b1f52,#2f2c86)",
-      photo: accountingImg,
-    },
-    {
-      g: "CN",
-      name: "Construction",
-      sub: "Job costing",
-      bg: "linear-gradient(135deg,#232a68,#3f3a9e)",
-      photo: constructionImg,
-    },
-    {
-      g: "HH",
-      name: "Hotel & Hospitality",
-      sub: "Revenue recognition",
-      bg: "linear-gradient(135deg,#191e52,#3f37c9)",
-      photo: hospitalityImg,
-    },
-    {
-      g: "TC",
-      name: "Technology",
-      sub: "SaaS metrics",
-      bg: "linear-gradient(135deg,#3f37c9,#7c3aed)",
-      photo: technologyImg,
-    },
-    {
-      g: "SU",
-      name: "Startups",
-      sub: "Runway & reporting",
-      bg: "linear-gradient(135deg,#12163a,#4f46e5)",
-      photo: startupsImg,
-    },
-  ];
+  const items = INDUSTRIES;
   return (
     <section className="fl-section" id="industries">
       <div className="fl-container">
@@ -1502,7 +1645,8 @@ function Industries() {
             {items.map((it) => (
               <div
                 className="fl-industry-tile"
-                key={it.name}
+                id={it.id}
+                key={it.id}
                 style={{ "--tile-bg": it.bg, "--tile-photo": `url(${it.photo})` }}
               >
                 <span className="fl-industry-glyph">{it.g}</span>
@@ -1637,7 +1781,7 @@ function Results() {
   const clients = [
     {
       name: "Fusemachines",
-      initials: "FM",
+      logo: fusemachinesLogo,
       location: "New York, United States",
       about:
         "A New York\u2013based AI and technology company. We support them remotely with financial consulting.",
@@ -1645,7 +1789,7 @@ function Results() {
     },
     {
       name: "Accountants4SME",
-      initials: "A4",
+      logo: accountants4smeLogo,
       location: "Portlaoise, County Laois, Ireland",
       about:
         "N-Tax Advisory, an Irish firm of certified tax advisors and accountants serving SMEs across Ireland. We lead their practice remotely.",
@@ -1653,7 +1797,7 @@ function Results() {
     },
     {
       name: "Himalayan PTE Limited",
-      initials: "HP",
+      logo: himalayanLogo,
       location: "Singapore",
       about: "A Singapore-based company supported by our offshore accounting team.",
       service: "Offshore Accounting",
@@ -1669,7 +1813,7 @@ function Results() {
               <h2 className="fl-h2">
                 Proven ROI Through <span className="accent">Excellence</span>
               </h2>
-              <a href="#results" className="fl-viewall">
+              <a href="/insights#success-stories" className="fl-viewall">
                 View All Success Stories <SolarIcon name="arrowRight" size={15} />
               </a>
             </div>
@@ -1692,14 +1836,16 @@ function Results() {
           </div>
         </Reveal>
         <Reveal>
-          <h3 className="fl-h2 fl-h2--center fl-testimonial-heading">
+          <h3 className="fl-h2 fl-h2--center fl-testimonial-heading" id="success-stories">
             Clients Who Trust Us
           </h3>
           <div className="fl-testimonial-grid fl-testimonial-grid--clients">
             {clients.map((c) => (
               <div className="fl-testimonial" key={c.name}>
+                <div className="fl-client-logo">
+                  <img src={c.logo} alt={`${c.name} logo`} loading="lazy" />
+                </div>
                 <div className="fl-testimonial-person">
-                  <div className="fl-avatar">{c.initials}</div>
                   <div>
                     <b>{c.name}</b>
                     <span>{c.location}</span>
@@ -1873,10 +2019,7 @@ function CtaBand() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     const form = event.target;
-    const data = {
-      ...Object.fromEntries(new FormData(form).entries()),
-      elapsedMs: Date.now() - mountedAtRef.current,
-    };
+    const data = Object.fromEntries(new FormData(form).entries());
 
     const errors = validate(data);
     if (Object.keys(errors).length > 0) {
@@ -1886,6 +2029,12 @@ function CtaBand() {
     setFieldErrors({});
 
     setStatus("submitting");
+
+    // The server silently drops anything sent within 2s of page load as a
+    // bot, so a very quick (e.g. autofilled) submission waits that out.
+    const wait = MIN_FILL_MS - (Date.now() - mountedAtRef.current);
+    if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+    data.elapsedMs = Date.now() - mountedAtRef.current;
 
     try {
       const res = await fetch("/api/consult", {
@@ -2069,7 +2218,7 @@ function Team() {
           linkedin: "https://www.linkedin.com/in/amrit-chapagain-ca-8851a8282/",
         },
         {
-          name: "Anupam Kafle",
+          name: "CA Anupam Kafle",
           role: "Co-Founder & Director",
           specialization: "Client Success • Business Development • Relationship Management",
           bio:
@@ -2267,47 +2416,21 @@ function Footer() {
           <div>
             <h5>Services</h5>
             <ul>
-              <li>
-                <a href="/services">Bookkeeping &amp; Accounting</a>
-              </li>
-              <li>
-                <a href="/services">Financial Reporting</a>
-              </li>
-              <li>
-                <a href="/services">Accounts Payable &amp; Receivable</a>
-              </li>
-              <li>
-                <a href="/services">Payroll Support</a>
-              </li>
-              <li>
-                <a href="/services">Cloud Accounting Solutions</a>
-              </li>
-              <li>
-                <a href="/services">CFO &amp; Advisory Support</a>
-              </li>
-              <li>
-                <a href="/services">CPA Firm Support</a>
-              </li>
-              <li>
-                <a href="/services">Audit Support</a>
-              </li>
+              {SERVICES.map((s) => (
+                <li key={s.id}>
+                  <a href={`/services#${s.id}`}>{s.title}</a>
+                </li>
+              ))}
             </ul>
           </div>
           <div>
             <h5>Industries</h5>
             <ul>
-              <li>
-                <a href="/industries">Accounting &amp; CPA</a>
-              </li>
-              <li>
-                <a href="/industries">Construction</a>
-              </li>
-              <li>
-                <a href="/industries">Education</a>
-              </li>
-              <li>
-                <a href="/industries">Technology</a>
-              </li>
+              {INDUSTRIES.map((it) => (
+                <li key={it.id}>
+                  <a href={`/industries#${it.id}`}>{it.name}</a>
+                </li>
+              ))}
             </ul>
           </div>
           <div>
@@ -2410,7 +2533,7 @@ function PageHero({ crumb, eyebrow, title, accent, lede, icon, stat, statLabel }
           </h1>
           <p>{lede}</p>
           <div className="fl-page-hero-ctas">
-            <a href="/contact" className="fl-btn fl-btn-primary">
+            <a href="/contact#contact" className="fl-btn fl-btn-primary">
               Book a Consultation <span aria-hidden="true">↗</span>
             </a>
             <a href="#page-content" className="fl-btn fl-btn-outline-onnavy">
@@ -2442,7 +2565,7 @@ function PageCta() {
               </p>
             </div>
             <div className="fl-page-cta-actions">
-              <a href="/contact" className="fl-btn fl-btn-primary">
+              <a href="/contact#contact" className="fl-btn fl-btn-primary">
                 Book a Consultation <span aria-hidden="true">↗</span>
               </a>
               <a href="mailto:connect@forthledger.com" className="fl-btn fl-btn-outline-onnavy">
@@ -2639,7 +2762,7 @@ export default function App() {
     const hash = window.location.hash.slice(1);
     const target = hash && document.getElementById(hash);
     if (target) {
-      requestAnimationFrame(() => target.scrollIntoView({ behavior: "auto" }));
+      requestAnimationFrame(() => scrollToElement(target, "instant"));
     } else {
       window.scrollTo({ top: 0, behavior: "instant" });
     }

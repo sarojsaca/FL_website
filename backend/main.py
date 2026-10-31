@@ -26,12 +26,12 @@ from . import lib
 from .lib import (
     DATA_DIR,
     MAIL_FROM,
-    RECIPIENT_EMAIL,
     append_line,
     clean,
     ensure_data_dir,
     is_valid_email,
-    send_mail,
+    queue_lead,
+    send_lead,
     send_or_queue_confirmation,
     update_json_list,
 )
@@ -175,12 +175,6 @@ async def consult(request: Request) -> JSONResponse:
         # Pretend success so bots don't learn to slow down.
         return ok()
 
-    # ---- Rate limit by IP ----
-    ip = request.client.host if request.client else "unknown"
-    ip_hash = hashlib.sha256(ip.encode()).hexdigest()
-    if _rate_limited(ip_hash):
-        return fail(429, "Too many requests. Please try again later.")
-
     # ---- Validate & sanitize fields ----
     name = clean(_as_str(data.get("name")), 200)
     email = clean(_as_str(data.get("email")), 200)
@@ -196,6 +190,13 @@ async def consult(request: Request) -> JSONResponse:
         return fail(422, "Please select a region.")
     if message == "":
         return fail(422, "Please tell us what you need help with.")
+
+    # ---- Rate limit by IP. Only valid submissions count, so someone
+    # correcting a typo isn't locked out; invalid ones send nothing. ----
+    ip = request.client.host if request.client else "unknown"
+    ip_hash = hashlib.sha256(ip.encode()).hexdigest()
+    if _rate_limited(ip_hash):
+        return fail(429, "Too many requests. Please try again later.")
 
     # ---- Compose a plain-text email. From is always our own domain;
     # the visitor's address only ever appears in Reply-To. ----
@@ -219,13 +220,12 @@ async def consult(request: Request) -> JSONResponse:
     )
 
     safe_name = name.replace('"', "").replace("<", "").replace(">", "")
-    sent = send_mail(
-        RECIPIENT_EMAIL,
-        subject,
-        body,
-        from_name="Forth Ledger Website",
-        reply_to=f'"{safe_name}" <{email}>',
-    )
+    reply_to = f'"{safe_name}" <{email}>'
+    sent = send_lead(subject, body, reply_to)
+    if not sent:
+        # Retried by retry_confirmations.py. Reporting an error here would
+        # only make the visitor resubmit and create duplicate leads.
+        queue_lead(subject, body, reply_to)
 
     # ---- Local backup log, in case mail delivery fails ----
     append_line(
@@ -249,10 +249,6 @@ async def consult(request: Request) -> JSONResponse:
     # right now, this gets queued and retry_confirmations.py (run on a
     # cron schedule) keeps trying until it succeeds.
     send_or_queue_confirmation(name, email)
-
-    if not sent:
-        # We still saved it to the log above, so the lead isn't lost.
-        return fail(502, "Could not send email right now, please try again or email us directly.")
 
     return ok()
 

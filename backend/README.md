@@ -21,9 +21,11 @@ behaves the same way.
 
 - **Honeypot field** silently drops bot submissions.
 - **Fill-speed check**: anything submitted less than 2s after page
-  load is silently dropped.
-- **Rate limiting**: 5 submissions per IP per 10 minutes, enforced
-  server-side via a local file.
+  load is silently dropped. The site's own form waits out the 2s
+  before sending, so real visitors are never dropped.
+- **Rate limiting**: 5 valid submissions per IP per 10 minutes,
+  enforced server-side via a local file. Rejected (invalid) attempts
+  don't count.
 - **Input sanitized** before it ever reaches an email body or a log
   file. Control characters and newlines are stripped, so nobody can
   inject extra email headers or corrupt the log.
@@ -37,8 +39,11 @@ behaves the same way.
 ## What happens on a submission
 
 1. The lead is validated, rate-limit checked, and emailed to
-   `RECIPIENT_EMAIL`. Whether this email sends is the only thing that
-   decides whether the browser sees success or failure.
+   `RECIPIENT_EMAIL`. If that email fails, it's queued to
+   `data/lead_queue.json` and the browser still sees success (an error
+   would only make the visitor resubmit and create duplicates).
+   `retry_confirmations.py` keeps retrying it for about two days
+   (`LEAD_MAX_ATTEMPTS`), then logs it to `data/lead_failures.log`.
 2. The lead is saved to `data/submissions.log` either way, so it's
    never lost even if step 1's email fails to send.
 3. The submitter gets a short "we received your request" confirmation
@@ -94,7 +99,7 @@ It prints `Sent.` or the exact reason it failed (for example a wrong
 password). Until the password is set, the form still works and saves
 emails to `data/outbox.log` instead of failing.
 
-## Cron job for confirmation retries
+## Cron job for email retries
 
 Every 15 minutes, from the project root:
 
@@ -102,12 +107,13 @@ Every 15 minutes, from the project root:
 python -m backend.retry_confirmations
 ```
 
-It prints a summary like `Confirmation retry: sent 1, gave up on 0,
-0 still queued.` It only runs from the command line and isn't exposed
-over HTTP.
+It retries queued lead notifications and confirmations, and prints a
+summary like `Lead retry: sent 1, gave up on 0, 0 still queued.`
+followed by the same line for confirmations. It only runs from the
+command line and isn't exposed over HTTP.
 
 ## Notes
 
-`data/submissions.log`, `confirmation_queue.json` and
-`confirmation_failures.log` hold names and emails. Treat them as
-sensitive.
+`data/submissions.log`, `lead_queue.json`, `confirmation_queue.json`,
+`lead_failures.log` and `confirmation_failures.log` hold names and
+emails. Treat them as sensitive.

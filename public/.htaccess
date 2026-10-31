@@ -1,0 +1,29 @@
+# Single-page app: /about, /services, ... are client-side routes with no
+# file on disk, so serve index.html for them instead of a 404.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  RewriteRule ^index\.html$ - [L]
+
+  # Real files and folders (assets, fonts, images) are served as-is.
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Leave the backend API alone.
+  RewriteRule ^api/ - [L]
+
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+# Fallback when mod_rewrite is unavailable.
+ErrorDocument 404 /index.html
+
+# Always re-check index.html so visitors get the latest build; hashed
+# files in /assets can be cached long-term.
+<IfModule mod_headers.c>
+  <FilesMatch "^index\.html$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+</IfModule>

@@ -53,6 +53,11 @@ CONFIRMATION_QUEUE = DATA_DIR / "confirmation_queue.json"
 # ~ a few hours of coverage at a 10-15 minute cron interval before we
 # give up on a single confirmation and log it as a permanent failure.
 CONFIRMATION_MAX_ATTEMPTS = 20
+# Lead notifications to RECIPIENT_EMAIL that failed to send. Retried by
+# the same cron job; ~2 days of coverage at a 15 minute interval. The lead
+# itself is always in data/submissions.log regardless.
+LEAD_QUEUE = DATA_DIR / "lead_queue.json"
+LEAD_MAX_ATTEMPTS = 200
 
 MAILER = "Python/FastAPI"
 
@@ -204,6 +209,24 @@ def send_or_queue_confirmation(name: str, email: str) -> bool:
     except Exception:
         logger.exception("Confirmation handling failed")
         return False
+
+
+def send_lead(subject: str, body: str, reply_to: str) -> bool:
+    return send_mail(RECIPIENT_EMAIL, subject, body, from_name="Forth Ledger Website", reply_to=reply_to)
+
+
+def queue_lead(subject: str, body: str, reply_to: str) -> None:
+    entry: dict[str, Any] = {
+        "subject": subject,
+        "body": body,
+        "reply_to": reply_to,
+        "attempts": 0,
+        "queued_at": int(time.time()),
+    }
+    try:
+        update_json_list(LEAD_QUEUE, lambda q: q + [entry])
+    except OSError:
+        logger.exception("Could not queue lead notification")
 
 
 def queue_confirmation(name: str, email: str) -> None:

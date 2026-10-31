@@ -304,7 +304,7 @@ button { font-family: inherit; cursor: pointer; }
 }
 .fl-hero::before {
   z-index: -2;
-  background-image: url("./assets/hero-meeting.png");
+  background-image: url("./assets/hero-meeting.webp");
   background-size: cover;
   background-position: center;
   filter: saturate(0.88) contrast(0.95);
@@ -622,6 +622,9 @@ button { font-family: inherit; cursor: pointer; }
 .fl-services-sticky {
   min-height: var(--service-scroll-height, calc(100vh + 220px));
 }
+/* Too tall to pin on this screen: a normal accordion that scrolls with the page. */
+.fl-services-showcase.is-static .fl-services-sticky { min-height: 0; }
+.fl-services-showcase.is-static .fl-services-layout { position: relative; top: auto; }
 .fl-services-layout {
   position: sticky;
   top: clamp(76px, 6vw, 104px);
@@ -1307,12 +1310,25 @@ button { font-family: inherit; cursor: pointer; }
 .fl-testimonial-stars .fl-solar-icon { fill: currentColor; stroke: none; }
 .fl-testimonial p.quote { font-family: var(--font-display); font-size: var(--card-copy); line-height: 1.6; margin: 0 0 24px; color: var(--text-navy); }
 .fl-testimonial-person { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
-.fl-avatar { width: 42px; height: 42px; border-radius: 50%; background: var(--grad-brand); color: #fff; font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .fl-testimonial-person b { display: block; font-size: 14.5px; }
 .fl-testimonial-person span { font-size: 12.5px; color: var(--text-muted); }
 .fl-testimonial-grid--clients { grid-template-columns: repeat(3, 1fr); }
 .fl-client-service { display: inline-block; margin-bottom: 14px; padding: 4px 12px; border-radius: 999px; background: rgba(99,102,241,0.1); color: var(--indigo); font-size: 12.5px; font-weight: 600; }
 .fl-testimonial-grid--clients p.quote { margin-bottom: 0; }
+.fl-client-logo {
+  height: 52px;
+  display: flex;
+  align-items: center;
+  margin-bottom: 18px;
+}
+.fl-client-logo img {
+  display: block;
+  max-height: 100%;
+  max-width: min(200px, 100%);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
 @media (max-width: 960px) { .fl-testimonial-grid--clients { grid-template-columns: 1fr; } }
 
 /* ---------------- FAQ ---------------- */
@@ -1826,7 +1842,7 @@ button { font-family: inherit; cursor: pointer; }
   overflow: hidden;
   background:
     linear-gradient(180deg, rgba(8,17,52,0.04), rgba(8,17,52,0.32)),
-    url("./assets/hero-meeting.png");
+    url("./assets/hero-meeting.webp");
   background-size: 165% auto;
   background-position: var(--photo-position);
   box-shadow: 0 28px 70px -42px rgba(15, 23, 70, 0.62);
@@ -1995,7 +2011,7 @@ button { font-family: inherit; cursor: pointer; }
   overflow: hidden;
   background:
     linear-gradient(180deg, transparent, rgba(9,15,43,0.32)),
-    url("./assets/hero-meeting.png");
+    url("./assets/hero-meeting.webp");
   background-size: 190% auto;
   background-position: var(--photo-position);
   filter: saturate(0.9);
@@ -2630,6 +2646,14 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--indigo); outlin
 .fl-nav-links > a.is-active,
 .fl-nav-dropdown-trigger.is-active { color: #fff; }
 .fl-mobile-menu a.is-active { color: #c4b5fd; }
+.fl-nav-cta.is-active { outline: 2px solid rgba(255,255,255,0.9); outline-offset: 3px; }
+.fl-mobile-menu a.fl-mobile-contact { color: #a9a2ff; font-weight: 600; }
+.fl-mobile-menu a.fl-mobile-contact.is-active {
+  color: #fff;
+  text-decoration: underline;
+  text-decoration-color: #a9a2ff;
+  text-underline-offset: 6px;
+}
 
 /* ---- Scroll progress ---- */
 .fl-scroll-progress {

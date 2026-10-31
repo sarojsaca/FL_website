@@ -1,12 +1,15 @@
 """
-Retries queued "we received your request" confirmation emails.
+Retries queued emails from the consultation form:
 
-The /api/consult endpoint sends this immediately when someone submits
-the form; if that immediate send fails (mail server down, etc.) it
-queues the confirmation to data/confirmation_queue.json instead of
-dropping it. This script is meant to run on a cron schedule (e.g.
-every 10-15 minutes) to keep retrying until each one succeeds or ages
-out. See README.md for the cron setup.
+- "we received your request" confirmations to the submitter
+  (data/confirmation_queue.json), and
+- new-lead notifications to RECIPIENT_EMAIL (data/lead_queue.json).
+
+The /api/consult endpoint sends both immediately; if a send fails (mail
+server down, etc.) it queues the email instead of dropping it. This
+script is meant to run on a cron schedule (e.g. every 10-15 minutes) to
+keep retrying until each one succeeds or ages out. See README.md for the
+cron setup.
 
 CLI only — it is not exposed over HTTP, so a random visitor can't
 trigger it and burn through the queue's retry budget early.
@@ -25,15 +28,68 @@ from .lib import (
     CONFIRMATION_MAX_ATTEMPTS,
     CONFIRMATION_QUEUE,
     DATA_DIR,
+    LEAD_MAX_ATTEMPTS,
+    LEAD_QUEUE,
     append_line,
     clean,
     is_valid_email,
     send_confirmation,
+    send_lead,
     update_json_list,
 )
 
 
+def retry_leads() -> dict[str, int]:
+    counts = {"sent": 0, "dropped": 0, "remaining": 0}
+
+    def process(queue: list) -> list:
+        remaining = []
+        for item in queue:
+            if not isinstance(item, dict) or not item.get("subject") or not item.get("body"):
+                continue
+            subject, body, reply_to = str(item["subject"]), str(item["body"]), str(item.get("reply_to") or "")
+            if send_lead(subject, body, reply_to):
+                counts["sent"] += 1
+                continue
+            try:
+                attempts = int(item.get("attempts") or 0) + 1
+            except (TypeError, ValueError):
+                attempts = 1
+            if attempts >= LEAD_MAX_ATTEMPTS:
+                # The lead itself is still in data/submissions.log.
+                counts["dropped"] += 1
+                append_line(
+                    DATA_DIR / "lead_failures.log",
+                    json.dumps(
+                        {
+                            "time": datetime.now().astimezone().isoformat(timespec="seconds"),
+                            "subject": subject,
+                            "reply_to": reply_to,
+                            "attempts": attempts,
+                        },
+                        ensure_ascii=False,
+                    ),
+                )
+                continue
+            remaining.append({**item, "attempts": attempts})
+        counts["remaining"] = len(remaining)
+        return remaining
+
+    update_json_list(LEAD_QUEUE, process)
+    return counts
+
+
 def main() -> int:
+    try:
+        leads = retry_leads()
+    except OSError as exc:
+        print(f"Could not open lead queue: {exc}", file=sys.stderr)
+        return 1
+    print(
+        f"Lead retry: sent {leads['sent']}, gave up on {leads['dropped']}, "
+        f"{leads['remaining']} still queued."
+    )
+
     counts = {"sent": 0, "dropped": 0, "remaining": 0}
 
     def process(queue: list) -> list:
